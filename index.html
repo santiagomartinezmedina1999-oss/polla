@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Polla Mundial</title>
+  <style>
+    body {
+      font-family: Arial;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+    .card {
+      background: white;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+    }
+    button {
+      margin-top: 5px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🏆 Polla Mundial</h1>
+
+<div id="login" class="card">
+  <h3>Ingresar</h3>
+  <input id="username" placeholder="Tu nombre">
+  <button onclick="login()">Entrar</button>
+</div>
+
+<div id="app" style="display:none">
+
+  <h3 id="userLabel"></h3>
+  <p>⭐ Tus puntos: <span id="myPoints">0</span></p>
+
+  <h2>📅 Partidos</h2>
+  <div id="matches"></div>
+
+  <h2>🥇 Ranking</h2>
+  <div id="ranking"></div>
+
+</div>
+
+<script>
+let currentUser = "";
+let predictions = JSON.parse(localStorage.getItem("predictions")) || [];
+
+// 📅 PARTIDOS
+const matches = [
+  { id: 1, teams: "Brasil vs Argentina", date: "2026-06-20T18:00" },
+  { id: 2, teams: "Francia vs Alemania", date: "2026-06-21T20:00" }
+];
+
+// ⚽ RESULTADOS (simulados)
+const results = {
+  1: "2-1",
+  2: "1-1"
+};
+
+function login() {
+  const name = document.getElementById("username").value;
+  if (!name) return;
+
+  currentUser = name;
+  document.getElementById("login").style.display = "none";
+  document.getElementById("app").style.display = "block";
+
+  document.getElementById("userLabel").innerText = "👤 " + name;
+
+  render();
+}
+
+// ⛔ bloqueo
+function isLocked(date) {
+  return new Date() >= new Date(date);
+}
+
+// ➕ guardar
+function savePrediction(matchId, value) {
+  if (!value) return;
+
+  predictions.push({
+    user: currentUser,
+    matchId,
+    prediction: value
+  });
+
+  localStorage.setItem("predictions", JSON.stringify(predictions));
+
+  render();
+}
+
+// 🧮 puntos
+function calculatePoints(pred, real) {
+  let [ph, pa] = pred.split("-").map(Number);
+  let [rh, ra] = real.split("-").map(Number);
+
+  if (ph === rh && pa === ra) return 3;
+
+  if (
+    (ph > pa && rh > ra) ||
+    (ph < pa && rh < ra) ||
+    (ph === pa && rh === ra)
+  ) return 1;
+
+  return 0;
+}
+
+// 📊 ranking
+function getRanking() {
+  let scores = {};
+
+  predictions.forEach(p => {
+    let real = results[p.matchId];
+    let pts = real ? calculatePoints(p.prediction, real) : 0;
+
+    if (!scores[p.user]) scores[p.user] = 0;
+
+    scores[p.user] += pts;
+  });
+
+  return Object.entries(scores)
+    .map(([name, points]) => ({ name, points }))
+    .sort((a, b) => b.points - a.points);
+}
+
+// 🎨 render
+function render() {
+  const matchesDiv = document.getElementById("matches");
+  matchesDiv.innerHTML = "";
+
+  matches.forEach(m => {
+    let div = document.createElement("div");
+    div.className = "card";
+
+    let locked = isLocked(m.date);
+
+    div.innerHTML = `
+      <p>${m.teams}</p>
+      <p>${new Date(m.date).toLocaleString()}</p>
+      <input id="input-${m.id}" placeholder="2-1" ${locked ? "disabled" : ""}>
+      <button ${locked ? "disabled" : ""} onclick="savePrediction(${m.id}, document.getElementById('input-${m.id}').value)">
+        Guardar
+      </button>
+    `;
+
+    matchesDiv.appendChild(div);
+  });
+
+  // ranking
+  const ranking = getRanking();
+  const rankingDiv = document.getElementById("ranking");
+
+  rankingDiv.innerHTML = "";
+
+  ranking.forEach((r, i) => {
+    let medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "";
+
+    let div = document.createElement("div");
+    div.className = "card";
+
+    div.innerText = `${medal} ${r.name} - ${r.points} pts`;
+
+    rankingDiv.appendChild(div);
+  });
+
+  // puntos usuario
+  let me = ranking.find(r => r.name === currentUser);
+  document.getElementById("myPoints").innerText = me ? me.points : 0;
+}
+</script>
+
+</body>
+</html>
+app lista
